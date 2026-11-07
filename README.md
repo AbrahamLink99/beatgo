@@ -21,9 +21,12 @@ Planerade steg:
 
 ## Få en APK
 
-Varje push till `main` bygger en APK i GitHub Actions. Hämta den under
-**Actions → senaste körningen → Artifacts → beatgo-arm64**, packa upp
-och installera på telefonen (tillåt installation från okänd källa).
+Varje push till `main` bygger en APK och publicerar den som release
+**latest**. Direktlänk från telefonen:
+
+https://github.com/AbrahamLink99/beatgo/releases/latest/download/beatgo.apk
+
+Tillåt installation från okänd källa när Android frågar.
 
 ## Bygga lokalt
 

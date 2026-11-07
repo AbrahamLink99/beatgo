@@ -24,7 +24,9 @@ jobs:
       # Generates the android/ scaffold (and anything else missing) without
       # touching files that already exist in the repo.
       - name: Scaffold platform files
-        run: flutter create . --org se.beatgo --project-name beatgo --platforms android
+        run: |
+          flutter create . --org se.beatgo --project-name beatgo --platforms android
+          rm -f test/widget_test.dart
 
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos

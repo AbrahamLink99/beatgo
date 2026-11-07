@@ -64,7 +64,7 @@ class _LanePainter extends CustomPainter {
 
     // notes
     final pill = Paint()..color = track.muted ? Bg.limeDim : Bg.lime;
-    final pad = 3.0;
+    const pad = 3.0;
     final keyLow = 36 + pattern.keyRoot; // key root in octave 1 (Ableton naming)
     for (final n in track.notes) {
       final x0 = n.step * stepW + pad;

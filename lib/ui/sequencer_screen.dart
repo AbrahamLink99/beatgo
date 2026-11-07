@@ -529,8 +529,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const sep = Text('  |  ', style: TextStyle(color: Bg.muted));
-    final keyName = '${noteNames[pattern.keyRoot]} ${scaleLabels[pattern.scale]?.toLowerCase() ?? pattern.scale}';
+    final keyName = '${noteNames[pattern.keyRoot]}${pattern.scale == 'major' ? '' : 'm'}';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -539,18 +538,15 @@ class _Header extends StatelessWidget {
           Spacer(),
           Text('bygge ${String.fromEnvironment('BUILD', defaultValue: 'dev')}', style: TextStyle(fontSize: 11, color: Bg.muted)),
         ]),
-        const SizedBox(height: 4),
-        Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
-          _Tap(
-            label: '${pattern.bpm.round()} BPM',
-            onTap: () => _bpmSheet(context),
-          ),
-          sep,
-          _Tap(label: 'swing $swingPct%', onTap: () => _swingSheet(context)),
-          sep,
-          _Tap(label: keyName, onTap: onKey),
-          sep,
-          Text('${pattern.bars} bars', style: const TextStyle(color: Bg.muted)),
+        const SizedBox(height: 10),
+        Row(children: [
+          _Tile(value: '${pattern.bpm.round()}', label: 'BPM', onTap: () => _bpmSheet(context)),
+          const SizedBox(width: 8),
+          _Tile(value: '$swingPct%', label: 'SWING', onTap: () => _swingSheet(context)),
+          const SizedBox(width: 8),
+          _Tile(value: keyName, label: 'TONART · ACKORD', onTap: onKey, accent: true),
+          const SizedBox(width: 8),
+          _Tile(value: '${pattern.bars}', label: 'TAKTER', onTap: () {}),
         ]),
       ]),
     );
@@ -595,17 +591,28 @@ class _Header extends StatelessWidget {
       );
 }
 
-class _Tap extends StatelessWidget {
-  const _Tap({required this.label, required this.onTap});
+class _Tile extends StatelessWidget {
+  const _Tile({required this.value, required this.label, required this.onTap, this.accent = false});
+  final String value;
   final String label;
   final VoidCallback onTap;
+  final bool accent;
   @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-          child: Text(label, style: const TextStyle(color: Bg.text, fontWeight: FontWeight.w500)),
+  Widget build(BuildContext context) => Expanded(
+        child: Material(
+          color: accent ? Bg.lime : Bg.lane,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: onTap,
+            child: SizedBox(
+              height: 48,
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: accent ? Bg.base : Bg.text)),
+                Text(label, style: TextStyle(fontSize: 8, letterSpacing: 1.2, fontWeight: FontWeight.w700, color: accent ? Bg.base.withValues(alpha: 0.7) : Bg.muted)),
+              ]),
+            ),
+          ),
         ),
       );
 }

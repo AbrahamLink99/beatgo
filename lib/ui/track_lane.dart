@@ -122,7 +122,9 @@ class _LanePainter extends CustomPainter {
         final slot = (n.pitch - keyLow).clamp(0, 24);
         final slotH = (size.height - pad * 2) / 25;
         y1 = size.height - pad - slot * slotH;
-        y0 = (y1 - slotH * 5).clamp(pad, y1 - 4);
+        y0 = y1 - slotH * 5;
+        if (y0 < pad) y0 = pad;
+        if (y1 - y0 < 5) y1 = y0 + 5;
       }
       canvas.drawRRect(
         RRect.fromRectAndRadius(Rect.fromLTRB(x0, y0, x1, y1), const Radius.circular(5)),

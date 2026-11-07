@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../audio/engine.dart';
 import '../main.dart';
 import '../model/pattern.dart';
-import '../samples/library.dart';
 import 'sample_browser.dart';
 import 'track_lane.dart';
 

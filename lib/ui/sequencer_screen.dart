@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../audio/engine.dart';
 import '../main.dart';
 import '../model/pattern.dart';
+import 'piano_roll.dart';
 import 'sample_browser.dart';
 import 'track_lane.dart';
 
@@ -30,6 +31,10 @@ class _SequencerScreenState extends State<SequencerScreen> {
   late final Sequencer seq = Sequencer(engine);
   Pattern pattern = Pattern.demo();
   String status = 'Startar ljud…';
+
+  /// Which bar the overview shows; -1 = all bars (wide screens).
+  int viewBar = -1;
+  bool _viewBarChosen = false;
 
   @override
   void initState() {
@@ -70,6 +75,10 @@ class _SequencerScreenState extends State<SequencerScreen> {
   // --- note editing -------------------------------------------------------
 
   void _tapStep(Track t, int step) {
+    if (!t.isDrum) {
+      _openEditor(t);
+      return;
+    }
     final existing = t.noteAt(step);
     _edit(() {
       if (existing != null) {
@@ -86,9 +95,28 @@ class _SequencerScreenState extends State<SequencerScreen> {
     });
   }
 
+  void _openEditor(Track t) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => PianoRoll(track: t, pattern: pattern, seq: seq, onChanged: _save),
+    )).then((_) => setState(() {}));
+  }
+
+  void _paintStep(Track t, int step, bool on) {
+    final existing = t.noteAt(step);
+    if (on && existing == null) {
+      _edit(() => t.notes.add(Note(step: step, pitch: t.rootNote)));
+    } else if (!on && existing != null) {
+      _edit(() => t.notes.remove(existing));
+    }
+  }
+
   /// Long press: drums → cycle velocity (accent/normal/soft);
-  /// melodic → step the pitch up through the scale (wraps after an octave).
+  /// melodic → open the editor.
   void _longPressStep(Track t, int step) {
+    if (!t.isDrum) {
+      _openEditor(t);
+      return;
+    }
     final n = t.noteAt(step);
     if (n == null) return;
     _edit(() {
@@ -339,6 +367,13 @@ class _SequencerScreenState extends State<SequencerScreen> {
   @override
   Widget build(BuildContext context) {
     final swingPct = (50 + pattern.swing * 50).round();
+    final wide = MediaQuery.sizeOf(context).width >= 700;
+    if (!_viewBarChosen) {
+      viewBar = wide ? -1 : 0;
+      _viewBarChosen = true;
+    }
+    final first = viewBar < 0 ? 0 : viewBar * 16;
+    final count = viewBar < 0 ? pattern.steps : 16;
     return Scaffold(
       body: SafeArea(
         child: Column(children: [
@@ -355,25 +390,52 @@ class _SequencerScreenState extends State<SequencerScreen> {
               padding: const EdgeInsets.all(12),
               child: Text(status, style: const TextStyle(color: Bg.muted, fontSize: 12)),
             ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+            child: Row(children: [
+              SegmentedButton<int>(
+                segments: [
+                  for (var b = 0; b < pattern.bars; b++) ButtonSegment(value: b, label: Text('Takt ${b + 1}')),
+                  const ButtonSegment(value: -1, label: Text('Alla')),
+                ],
+                selected: {viewBar},
+                showSelectedIcon: false,
+                style: ButtonStyle(visualDensity: VisualDensity.compact),
+                onSelectionChanged: (s) => setState(() => viewBar = s.first),
+              ),
+              const Spacer(),
+              const Text('dra = måla · håll = accent', style: TextStyle(color: Bg.muted, fontSize: 11)),
+            ]),
+          ),
           Expanded(
             child: ValueListenableBuilder<int>(
               valueListenable: seq.currentStep,
               builder: (_, step, __) => ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
                 children: [
                   for (final t in pattern.tracks) ...[
                     Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                       GestureDetector(
                         onTap: () => _trackMenu(t),
+                        behavior: HitTestBehavior.opaque,
                         child: SizedBox(
                           width: 88,
-                          child: Text(t.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: t.muted ? Bg.muted : Bg.text)),
+                          child: Row(children: [
+                            Expanded(
+                              child: Text(t.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: t.muted ? Bg.muted : Bg.text)),
+                            ),
+                            if (!t.isDrum)
+                              const Padding(
+                                padding: EdgeInsets.only(right: 6),
+                                child: Icon(Icons.piano, size: 14, color: Bg.muted),
+                              ),
+                          ]),
                         ),
                       ),
                       Expanded(
@@ -381,8 +443,12 @@ class _SequencerScreenState extends State<SequencerScreen> {
                           track: t,
                           pattern: pattern,
                           currentStep: step,
+                          firstStep: first,
+                          stepCount: count,
+                          height: t.isDrum ? 38 : 56,
                           onTapStep: (s) => _tapStep(t, s),
                           onLongPressStep: (s) => _longPressStep(t, s),
+                          onPaintStep: t.isDrum ? (s, on) => _paintStep(t, s, on) : null,
                         ),
                       ),
                     ]),
@@ -391,7 +457,7 @@ class _SequencerScreenState extends State<SequencerScreen> {
                   Padding(
                     padding: const EdgeInsets.only(left: 88),
                     child: Row(children: [
-                      for (var b = 0; b < pattern.bars * 4; b++)
+                      for (var b = 0; b < count ~/ 4; b++)
                         Expanded(
                             child: Text('${b % 4 + 1}',
                                 textAlign: TextAlign.center,

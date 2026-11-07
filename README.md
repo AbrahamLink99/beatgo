@@ -14,7 +14,7 @@ Planerade steg:
 
 1. ✅ Ljudmotor (flutter_soloud) + sequencer-UI efter designreferensen
 2. ✅ Sample-browser: Download/Splice, Music och egna mappar, förhandslyssning
-3. Melodispår med riktig piano roll, ackordrad per takt
+3. ✅ Piano roll för melodispår (ackordrad per takt återstår)
 4. Export: MIDI + manifest.json (+ använda wavs) via dela-menyn
 5. PC-script som bygger en `.als` av exporten
 6. Arrangemang (drop / breakdown / build) och automation
@@ -39,9 +39,12 @@ Placeholder-ljuden genereras med `python3 tools/gen_samples.py`.
 
 ## Hur appen används
 
-- Tryck i en rad för att lägga/ta bort ett slag.
-- Håll inne på ett slag: trummor växlar accent/normal/mjuk, melodispår
-  stegar tonen uppåt i skalan.
+- Trumrader: tryck = slag på/av, dra = måla flera, håll = accent/normal/mjuk.
+- Melodirader (pianoikon): tryck öppnar piano roll-editorn. Där: tryck =
+  lägg ton (vald längd), tryck på markerad ton = ta bort, dra = flytta,
+  dra högerkanten = längd, pil upp/ner = tonhöjd i skalan, velocity-slider.
+- "Takt 1 / Takt 2 / Alla" väljer vad översikten visar; på en smal skärm
+  visas en takt i taget så cellerna går att träffa.
 - Tryck på spårnamnet för att byta ljud, välja trumma/melodisk, sätta
   grundton, volym, tysta, rensa, ta bort.
 - "Lägg till spår → Från telefonen…" bläddrar i Download/Splice, Music

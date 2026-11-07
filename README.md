@@ -14,7 +14,7 @@ Planerade steg:
 
 1. ✅ Ljudmotor (flutter_soloud) + sequencer-UI efter designreferensen
 2. ✅ Sample-browser: Download/Splice, Music och egna mappar, förhandslyssning
-3. ✅ Piano roll för melodispår (ackordrad per takt återstår)
+3. ✅ Piano roll för melodispår, tonartsskärm med ackordknappar → Chords-kanal
 4. Export: MIDI + manifest.json (+ använda wavs) via dela-menyn
 5. PC-script som bygger en `.als` av exporten
 6. Arrangemang (drop / breakdown / build) och automation

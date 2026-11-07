@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../audio/engine.dart';
 import '../main.dart';
 import '../model/pattern.dart';
+import 'key_screen.dart';
 import 'piano_roll.dart';
 import 'sample_browser.dart';
 import 'track_lane.dart';
@@ -18,6 +19,7 @@ const _assetSamples = <String, (String, TrackKind, int)>{
   'Open hat': ('assets/samples/hat_open.wav', TrackKind.drum, 46),
   'Shaker': ('assets/samples/shaker.wav', TrackKind.drum, 37),
   'Bass': ('assets/samples/bass_c1.wav', TrackKind.melodic, 24),
+  'Chords (pad)': ('assets/samples/pad_c3.wav', TrackKind.melodic, 60),
 };
 
 class SequencerScreen extends StatefulWidget {
@@ -97,8 +99,25 @@ class _SequencerScreenState extends State<SequencerScreen> {
 
   void _openEditor(Track t) {
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => PianoRoll(track: t, pattern: pattern, seq: seq, onChanged: _save),
+      builder: (_) => PianoRoll(track: t, pattern: pattern, seq: seq, onChanged: _save, ensureChordTrack: _ensureChordTrack),
     )).then((_) => setState(() {}));
+  }
+
+  void _openKey() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => KeyScreen(pattern: pattern, onChanged: _save, ensureChordTrack: _ensureChordTrack),
+    )).then((_) => setState(() {}));
+  }
+
+  /// The Chords channel the key screen drops chords into; created on demand.
+  Future<Track> _ensureChordTrack() async {
+    final existing = pattern.tracks.where((t) => t.name.toLowerCase().startsWith('chord')).firstOrNull;
+    if (existing != null) return existing;
+    const path = 'assets/samples/pad_c3.wav';
+    await engine.load(path);
+    final t = Track(name: 'Chords', kind: TrackKind.melodic, samplePath: path, rootNote: 60, volume: 0.6);
+    _edit(() => pattern.tracks.add(t));
+    return t;
   }
 
   void _paintStep(Track t, int step, bool on) {
@@ -382,8 +401,7 @@ class _SequencerScreenState extends State<SequencerScreen> {
             swingPct: swingPct,
             onBpm: (d) => _edit(() => pattern.bpm = (pattern.bpm + d).clamp(60, 200)),
             onSwing: (v) => _edit(() => pattern.swing = v),
-            onKey: (k) => _edit(() => pattern.keyRoot = k),
-            onScale: (s) => _edit(() => pattern.scale = s),
+            onKey: _openKey,
           ),
           if (status.isNotEmpty)
             Padding(
@@ -502,19 +520,17 @@ class _Header extends StatelessWidget {
     required this.onBpm,
     required this.onSwing,
     required this.onKey,
-    required this.onScale,
   });
   final Pattern pattern;
   final int swingPct;
   final void Function(double delta) onBpm;
   final void Function(double) onSwing;
-  final void Function(int) onKey;
-  final void Function(String) onScale;
+  final VoidCallback onKey;
 
   @override
   Widget build(BuildContext context) {
     const sep = Text('  |  ', style: TextStyle(color: Bg.muted));
-    final keyName = '${noteNames[pattern.keyRoot]} ${pattern.scale}';
+    final keyName = '${noteNames[pattern.keyRoot]} ${scaleLabels[pattern.scale]?.toLowerCase() ?? pattern.scale}';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -528,7 +544,7 @@ class _Header extends StatelessWidget {
           sep,
           _Tap(label: 'swing $swingPct%', onTap: () => _swingSheet(context)),
           sep,
-          _Tap(label: keyName, onTap: () => _keySheet(context)),
+          _Tap(label: keyName, onTap: onKey),
           sep,
           Text('${pattern.bars} bars', style: const TextStyle(color: Bg.muted)),
         ]),
@@ -569,37 +585,6 @@ class _Header extends StatelessWidget {
                 onChanged: (v) { onSwing(v); set(() {}); },
               ),
               const Text('50 % = rakt · 58 % = typisk house · 67 % = garage', style: TextStyle(color: Bg.muted, fontSize: 12)),
-            ]),
-          );
-        }),
-      );
-
-  void _keySheet(BuildContext context) => showModalBottomSheet<void>(
-        context: context,
-        backgroundColor: Bg.lane,
-        builder: (_) => StatefulBuilder(builder: (context, set) {
-          return Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Wrap(spacing: 6, children: [
-                for (var i = 0; i < 12; i++)
-                  ChoiceChip(
-                    label: Text(noteNames[i]),
-                    selected: pattern.keyRoot == i,
-                    selectedColor: Bg.lime,
-                    onSelected: (_) { onKey(i); set(() {}); },
-                  ),
-              ]),
-              const SizedBox(height: 10),
-              Wrap(spacing: 6, children: [
-                for (final s in scales.keys)
-                  ChoiceChip(
-                    label: Text(s),
-                    selected: pattern.scale == s,
-                    selectedColor: Bg.lime,
-                    onSelected: (_) { onScale(s); set(() {}); },
-                  ),
-              ]),
             ]),
           );
         }),

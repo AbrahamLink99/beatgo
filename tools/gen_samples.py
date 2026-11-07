@@ -46,3 +46,11 @@ sub = np.sin(2 * np.pi * f0 * t5)
 lp = np.convolve(saw, np.ones(40) / 40, mode="same")
 write("bass_c1.wav", (lp * 0.6 + sub * 0.5) * env(n5, 0.004, 0.9) * 0.8)
 print("ok")
+
+# pad: detuned saws at C3, slow attack, for the Chords channel
+n6 = int(SR * 2.0); t6 = np.arange(n6) / SR; fc = 130.81
+def saw(f): return 2 * ((t6 * f) % 1) - 1
+pad = saw(fc) + saw(fc * 1.003) + saw(fc * 0.997) + 0.5 * saw(fc * 2.002)
+pad = np.convolve(pad, np.ones(24) / 24, mode="same")
+pad = pad * np.minimum(t6 / 0.08, 1) * np.exp(-t6 / 1.6)
+write("pad_c3.wav", pad / np.max(np.abs(pad)) * 0.6)

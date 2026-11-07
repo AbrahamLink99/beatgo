@@ -113,8 +113,11 @@ class Pattern {
 
   /// 0 = C … 11 = B
   int keyRoot;
-  String scale; // minor | major | dorian
+  String scale; // key of [scales]
   int bars;
+
+  /// When true the piano roll refuses notes outside the key.
+  bool scaleLock;
   List<Track> tracks;
 
   Pattern({
@@ -124,6 +127,7 @@ class Pattern {
     this.keyRoot = 6,
     this.scale = 'minor',
     this.bars = 2,
+    this.scaleLock = true,
     List<Track>? tracks,
   }) : tracks = tracks ?? [];
 
@@ -136,6 +140,7 @@ class Pattern {
         'keyRoot': keyRoot,
         'scale': scale,
         'bars': bars,
+        'scaleLock': scaleLock,
         'tracks': tracks.map((t) => t.toJson()).toList(),
       };
 
@@ -144,8 +149,9 @@ class Pattern {
         bpm: (j['bpm'] as num).toDouble(),
         swing: (j['swing'] as num?)?.toDouble() ?? 0,
         keyRoot: (j['keyRoot'] as int?) ?? 0,
-        scale: (j['scale'] as String?) ?? 'minor',
+        scale: scales.containsKey(j['scale']) ? j['scale'] as String : 'minor',
         bars: (j['bars'] as int?) ?? 2,
+        scaleLock: (j['scaleLock'] as bool?) ?? true,
         tracks: ((j['tracks'] as List?) ?? [])
             .map((e) => Track.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -228,4 +234,70 @@ const scales = <String, List<int>>{
   'minor': [0, 2, 3, 5, 7, 8, 10],
   'major': [0, 2, 4, 5, 7, 9, 11],
   'dorian': [0, 2, 3, 5, 7, 9, 10],
+  'harmonic minor': [0, 2, 3, 5, 7, 8, 11],
+  'pentatonic': [0, 3, 5, 7, 10],
 };
+
+const scaleLabels = <String, String>{
+  'minor': 'Moll',
+  'major': 'Dur',
+  'dorian': 'Dorisk',
+  'harmonic minor': 'Harm. moll',
+  'pentatonic': 'Pentatonisk',
+};
+
+/// Scale-degree label for a semitone interval above the key root.
+/// Same numbers in every key, so a bassline reads the same in F#m and Am.
+const degreeLabels = ['1', 'b2', '2', 'b3', '3', '4', 'b5', '5', 'b6', '6', 'b7', '7'];
+
+String degreeOf(int pitch, int keyRoot) => degreeLabels[(pitch - keyRoot) % 12];
+
+bool inKey(int pitch, int keyRoot, String scale) =>
+    scales[scale]!.contains((pitch - keyRoot) % 12);
+
+/// A diatonic chord suggestion built on a scale degree.
+class ChordSuggestion {
+  final String name; // "F#m", "D", "C#dim"
+  final String numeral; // "i", "VI", "vii°"
+  final List<int> intervals; // semitones above the key root
+
+  const ChordSuggestion(this.name, this.numeral, this.intervals);
+
+  /// MIDI pitches with the chord root placed in [octave] (Ableton naming, C3 = 60).
+  List<int> pitches(int keyRoot, {int octave = 3}) {
+    final base = (octave + 2) * 12 + keyRoot;
+    return intervals.map((i) => base + i).toList();
+  }
+}
+
+/// Triads on every degree of a 7-note scale (pentatonic: on its 5 notes).
+List<ChordSuggestion> chordsFor(int keyRoot, String scale) {
+  final deg = scales[scale]!;
+  const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+  final out = <ChordSuggestion>[];
+  for (var i = 0; i < deg.length; i++) {
+    final r = deg[i];
+    final third = deg[(i + 2) % deg.length] + ((i + 2) >= deg.length ? 12 : 0);
+    final fifth = deg[(i + 4) % deg.length] + ((i + 4) >= deg.length ? 12 : 0);
+    final t = third - r, f = fifth - r;
+    String quality, num;
+    if (t == 4 && f == 7) {
+      quality = '';
+      num = roman[i % 7];
+    } else if (t == 3 && f == 7) {
+      quality = 'm';
+      num = roman[i % 7].toLowerCase();
+    } else if (t == 3 && f == 6) {
+      quality = 'dim';
+      num = '${roman[i % 7].toLowerCase()}°';
+    } else if (t == 4 && f == 8) {
+      quality = 'aug';
+      num = '${roman[i % 7]}+';
+    } else {
+      quality = 'sus';
+      num = roman[i % 7];
+    }
+    out.add(ChordSuggestion(noteNames[(keyRoot + r) % 12] + quality, num, [r, r + t, r + f]));
+  }
+  return out;
+}

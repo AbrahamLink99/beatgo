@@ -36,6 +36,9 @@ class SampleLibrary {
   String? lastError;
   List<String> extraFolders = [];
 
+  /// Folder → number of audio files found there (or -1 if missing/unreadable). For the UI.
+  final Map<String, int> scanReport = {};
+
   Future<bool> requestPermission() async {
     if (!Platform.isAndroid) return true;
     // Android 13+: READ_MEDIA_AUDIO; older: storage.
@@ -71,8 +74,16 @@ class SampleLibrary {
       if (!ok) {
         lastError = 'Ingen tillgång till ljudfiler. Ge BeatGo behörighet under Appinfo → Behörigheter.';
       } else {
+        scanReport.clear();
         for (final f in [...defaultFolders, ...extraFolders]) {
-          await _walk(Directory(f), found, depth: 0);
+          final before = found.length;
+          final dir = Directory(f);
+          if (!await dir.exists()) {
+            scanReport[f] = -1;
+            continue;
+          }
+          await _walk(dir, found, depth: 0);
+          scanReport[f] = found.length - before;
         }
       }
     } catch (e) {

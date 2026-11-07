@@ -120,6 +120,16 @@ class _SampleBrowserState extends State<SampleBrowser> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(lib.lastError!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12)),
           ),
+        if (lib.scanReport.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+            child: Text(
+              lib.scanReport.entries
+                  .map((e) => '${e.key.replaceFirst('/storage/emulated/0/', '')}: ${e.value < 0 ? 'finns inte' : '${e.value} filer'}')
+                  .join(' · '),
+              style: const TextStyle(color: Bg.muted, fontSize: 10, height: 1.4),
+            ),
+          ),
         if (all.isEmpty && lib.lastError == null && !lib.scanning.value)
           const Padding(
             padding: EdgeInsets.all(24),

@@ -13,7 +13,7 @@ känna om timing och latens håller på telefonen innan vi bygger vidare.
 Planerade steg:
 
 1. ✅ Ljudmotor (flutter_soloud) + sequencer-UI efter designreferensen
-2. Sample-browser: Download/Splice och egen synkad mapp, förhandslyssning
+2. ✅ Sample-browser: Download/Splice, Music och egna mappar, förhandslyssning
 3. Melodispår med riktig piano roll, ackordrad per takt
 4. Export: MIDI + manifest.json (+ använda wavs) via dela-menyn
 5. PC-script som bygger en `.als` av exporten
@@ -42,7 +42,10 @@ Placeholder-ljuden genereras med `python3 tools/gen_samples.py`.
 - Tryck i en rad för att lägga/ta bort ett slag.
 - Håll inne på ett slag: trummor växlar accent/normal/mjuk, melodispår
   stegar tonen uppåt i skalan.
-- Tryck på spårnamnet för volym, tysta, rensa, ta bort.
+- Tryck på spårnamnet för att byta ljud, välja trumma/melodisk, sätta
+  grundton, volym, tysta, rensa, ta bort.
+- "Lägg till spår → Från telefonen…" bläddrar i Download/Splice, Music
+  och mappar du lagt till. Tryck på en rad för att lyssna, Välj för att använda.
 - BPM, swing och tonart i headern är klickbara.
 - Swing visas MPC-style: 50 % = rakt, 58 % = typisk house.
 

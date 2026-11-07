@@ -6,9 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../audio/engine.dart';
 import '../main.dart';
 import '../model/pattern.dart';
+import '../samples/library.dart';
+import 'sample_browser.dart';
 import 'track_lane.dart';
 
-/// Bundled sounds a new track can start from. Device samples come later.
+/// Bundled sounds a new track can start from.
 const _assetSamples = <String, (String, TrackKind, int)>{
   'Kick': ('assets/samples/kick.wav', TrackKind.drum, 36),
   'Clap': ('assets/samples/clap.wav', TrackKind.drum, 38),
@@ -111,10 +113,75 @@ class _SequencerScreenState extends State<SequencerScreen> {
     });
   }
 
+  /// Drum tracks: move the pad note (and every hit with it).
+  /// Melodic tracks: tell the sampler which note the file was recorded at.
+  void _shiftRoot(Track t, int delta) {
+    final next = (t.rootNote + delta).clamp(0, 108);
+    if (t.isDrum) {
+      for (var i = 0; i < t.notes.length; i++) {
+        t.notes[i] = t.notes[i].copyWith(pitch: next);
+      }
+    }
+    t.rootNote = next;
+  }
+
   int _lastPitch(Track t) =>
       t.notes.isEmpty ? 36 + pattern.keyRoot : t.notes.last.pitch;
 
   // --- tracks ---------------------------------------------------------------
+
+  static const _fromPhone = '__phone__';
+
+  /// Guess drum vs melodic from the file name (Splice names are descriptive).
+  static TrackKind _guessKind(String name) {
+    final n = name.toLowerCase();
+    const melodic = ['bass', 'sub', 'synth', 'key', 'pad', 'chord', 'stab', 'lead', 'pluck', 'organ', 'piano', 'vocal', 'vox'];
+    return melodic.any(n.contains) ? TrackKind.melodic : TrackKind.drum;
+  }
+
+  /// Splice-style file names often end in the root note, e.g. "…_F#min.wav" or "…_C2.wav".
+  static int _guessRoot(String name, TrackKind kind) {
+    if (kind == TrackKind.drum) return 36;
+    final m = RegExp(r'[_\- ]([A-G])(#|b)?(-?\d)?(?=[_\-. ]|$)', caseSensitive: false).allMatches(name).lastOrNull;
+    if (m == null) return 36; // C1
+    var semi = const {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}[m.group(1)!.toUpperCase()]!;
+    if (m.group(2) == '#') semi++;
+    if (m.group(2) == 'b') semi--;
+    final oct = int.tryParse(m.group(3) ?? '') ?? 1;
+    return (oct + 2) * 12 + semi;
+  }
+
+  Future<void> _pickFromPhone({Track? replace}) async {
+    final f = await SampleBrowser.open(context, title: replace == null ? 'Nytt spår från telefonen' : 'Byt ljud: ${replace.name}');
+    if (f == null) return;
+    final src = await engine.load(f.path);
+    if (src == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kunde inte läsa ljudfilen')));
+      }
+      return;
+    }
+    if (replace != null) {
+      _edit(() {
+        replace.samplePath = f.path;
+        replace.name = _shortName(f.name);
+      });
+    } else {
+      final kind = _guessKind(f.name);
+      _edit(() => pattern.tracks.add(Track(
+            name: _shortName(f.name),
+            kind: kind,
+            samplePath: f.path,
+            rootNote: _guessRoot(f.name, kind),
+          )));
+    }
+  }
+
+  static String _shortName(String n) {
+    // "SPLICE_Pack_kick_punchy_01" → "kick punchy 01"
+    final cleaned = n.replaceAll(RegExp(r'[_\-]+'), ' ').trim();
+    return cleaned.length > 18 ? cleaned.substring(0, 18) : cleaned;
+  }
 
   Future<void> _addTrack() async {
     final pick = await showModalBottomSheet<String>(
@@ -127,6 +194,13 @@ class _SequencerScreenState extends State<SequencerScreen> {
             padding: EdgeInsets.fromLTRB(20, 18, 20, 8),
             child: Text('Nytt spår', style: TextStyle(color: Bg.muted, letterSpacing: 1.2, fontSize: 12)),
           ),
+          ListTile(
+            leading: const Icon(Icons.folder_open, color: Bg.lime),
+            title: const Text('Från telefonen…', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Download/Splice, Music, egna mappar', style: TextStyle(color: Bg.muted, fontSize: 12)),
+            onTap: () => Navigator.pop(context, _fromPhone),
+          ),
+          const Divider(color: Bg.line, height: 8),
           for (final e in _assetSamples.entries)
             ListTile(
               title: Text(e.key),
@@ -138,6 +212,10 @@ class _SequencerScreenState extends State<SequencerScreen> {
       ),
     );
     if (pick == null) return;
+    if (pick == _fromPhone) {
+      await _pickFromPhone();
+      return;
+    }
     final (path, kind, root) = _assetSamples[pick]!;
     final t = Track(name: pick, kind: kind, samplePath: path, rootNote: root);
     await engine.load(path);
@@ -153,9 +231,67 @@ class _SequencerScreenState extends State<SequencerScreen> {
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(t.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            Text(t.isDrum ? 'Drum Rack ${noteName(t.rootNote)}' : 'Sample inspelad på ${noteName(t.rootNote)}',
-                style: const TextStyle(color: Bg.muted, fontSize: 12)),
-            const SizedBox(height: 12),
+            Text(
+              t.samplePath.startsWith('assets/') ? 'inbyggt ljud' : t.samplePath.replaceFirst('/storage/emulated/0/', ''),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Bg.muted, fontSize: 11),
+            ),
+            const SizedBox(height: 10),
+            Row(children: [
+              FilledButton.tonalIcon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _pickFromPhone(replace: t);
+                },
+                icon: const Icon(Icons.folder_open, size: 18),
+                label: const Text('Byt ljud'),
+              ),
+              const SizedBox(width: 10),
+              SegmentedButton<TrackKind>(
+                segments: const [
+                  ButtonSegment(value: TrackKind.drum, label: Text('Trumma')),
+                  ButtonSegment(value: TrackKind.melodic, label: Text('Melodisk')),
+                ],
+                selected: {t.kind},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) {
+                  _edit(() {
+                    t.kind = s.first;
+                    if (t.isDrum) {
+                      for (var i = 0; i < t.notes.length; i++) {
+                        t.notes[i] = t.notes[i].copyWith(pitch: t.rootNote, length: 1);
+                      }
+                    }
+                  });
+                  setSheet(() {});
+                },
+              ),
+            ]),
+            const SizedBox(height: 8),
+            Row(children: [
+              Text(t.isDrum ? 'MIDI-not (Drum Rack-pad)' : 'Samplens grundton',
+                  style: const TextStyle(color: Bg.muted)),
+              const Spacer(),
+              IconButton(
+                onPressed: () {
+                  _edit(() => _shiftRoot(t, -1));
+                  setSheet(() {});
+                },
+                icon: const Icon(Icons.remove),
+              ),
+              SizedBox(
+                width: 44,
+                child: Text(noteName(t.rootNote), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              IconButton(
+                onPressed: () {
+                  _edit(() => _shiftRoot(t, 1));
+                  setSheet(() {});
+                },
+                icon: const Icon(Icons.add),
+              ),
+            ]),
             Row(children: [
               const Text('Volym', style: TextStyle(color: Bg.muted)),
               Expanded(

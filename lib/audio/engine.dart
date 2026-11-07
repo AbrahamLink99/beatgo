@@ -70,6 +70,31 @@ class AudioEngine {
     }
   }
 
+  SoundHandle? _preview;
+
+  /// Audition a file in the browser. Stops the previous preview first.
+  Future<void> preview(String path) async {
+    final src = await load(path);
+    if (src == null) return;
+    _preview = await _soloud.play(src, volume: 0.9);
+  }
+
+  Future<void> stopPreview() async {
+    final h = _preview;
+    _preview = null;
+    if (h != null) {
+      try {
+        await _soloud.stop(h);
+      } catch (_) {}
+    }
+  }
+
+  /// Drop a cached sample (e.g. after a track changed sound).
+  void unload(String path) {
+    final s = _sources.remove(path);
+    if (s != null) _soloud.disposeSource(s);
+  }
+
   void dispose() {
     for (final s in _sources.values) {
       _soloud.disposeSource(s);

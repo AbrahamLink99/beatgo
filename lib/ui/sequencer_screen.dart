@@ -534,7 +534,11 @@ class _Header extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('BEATGO', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 1)),
+        const Row(children: [
+          Text('BEATGO', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 1)),
+          Spacer(),
+          Text('bygge ${String.fromEnvironment('BUILD', defaultValue: 'dev')}', style: TextStyle(fontSize: 11, color: Bg.muted)),
+        ]),
         const SizedBox(height: 4),
         Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
           _Tap(

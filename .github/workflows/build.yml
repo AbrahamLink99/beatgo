@@ -36,7 +36,7 @@ jobs:
       - run: flutter test
 
       - name: Build APK
-        run: flutter build apk --release --split-per-abi
+        run: flutter build apk --release --split-per-abi --build-number=${{ github.run_number }} --dart-define=BUILD=${{ github.run_number }}
 
       - name: Rename APK
         run: cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk beatgo.apk
@@ -56,5 +56,5 @@ jobs:
           SHORT=$(git rev-parse --short HEAD)
           gh release delete latest --yes --cleanup-tag 2>/dev/null || true
           gh release create latest beatgo.apk \
-            --title "BeatGo build $SHORT" \
-            --notes "Senaste bygget från main ($SHORT). Ladda ner beatgo.apk och installera."
+            --title "BeatGo build ${{ github.run_number }} ($SHORT)" \
+            --notes "Bygge ${{ github.run_number }} från main ($SHORT). Ladda ner beatgo.apk och installera. Numret visas uppe till höger i appen."
